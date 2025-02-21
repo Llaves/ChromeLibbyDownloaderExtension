@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Libby Audiobook Helper</title>
+  <style>
+    body {
+      width: 300px;
+      padding: 10px;
+      font-family: Arial, sans-serif;
+    }
+    button {
+      padding: 8px 15px;
+      background-color: #4285f4;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      width: 100%;
+      margin-top: 10px;
+    }
+    button:hover {
+      background-color: #3367d6;
+    }
+    #clearUrlsBtn {
+      background-color: #ea4335;
+    }
+    #clearUrlsBtn:hover {
+      background-color: #d33426;
+    }
+    #downloadUrlsBtn {
+      background-color: #34a853;
+    }
+    #downloadUrlsBtn:hover {
+      background-color: #2d9246;
+    }
+    #status {
+      margin-top: 15px;
+      color: #555;
+      font-size: 14px;
+    }
+    .progress {
+      margin-top: 10px;
+      display: none;
+    }
+    progress {
+      width: 100%;
+    }
+  </style>
+</head>
+<body>
+  <h2>Libby Audiobook Helper</h2>
+  <p>Current status: <span id="captureStatus">Monitoring for media URLs</span></p>
+  <button id="showUrlsBtn">Show URLs</button>
+  <button id="downloadUrlsBtn">Download URLs</button>
+  <button id="clearUrlsBtn">Clear URLs</button>
+  <div class="progress">
+    <p>Downloading: <span id="downloadCount">0</span>/<span id="totalCount">0</span></p>
+    <progress id="downloadProgress" value="0" max="100"></progress>
+  </div>
+  <div id="status"></div>
+  <script src="popup.js"></script>
+</body>
+</html>
