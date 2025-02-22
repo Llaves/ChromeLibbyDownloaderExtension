@@ -10,33 +10,26 @@
     }
     button {
       padding: 8px 15px;
-      background-color: #4285f4;
-      color: white;
-      border: none;
-      border-radius: 4px;
+      /*background-color: #f0f0f0;  Light gray */
+      background-color: #ffffff;
+      color: black;
+      border: 1px solid #808080; /* Black border */
+      border-radius: 5px; /* Rounded corners */
       cursor: pointer;
       width: 100%;
       margin-top: 10px;
     }
     button:hover {
-      background-color: #3367d6;
+      /*background-color: #e0e0e0; Light gray on hover */
+       background-color: #f0f0f0;
     }
     button:disabled {
       background-color: #cccccc;
       cursor: not-allowed;
+      color: #666666;
+      border-color: #aaaaaa;
     }
-    #clearUrlsBtn {
-      background-color: #ea4335;
-    }
-    #clearUrlsBtn:hover {
-      background-color: #d33426;
-    }
-    #downloadUrlsBtn {
-      background-color: #34a853;
-    }
-    #downloadUrlsBtn:hover {
-      background-color: #2d9246;
-    }
+
     #status {
       margin-top: 15px;
       color: #555;
@@ -75,11 +68,17 @@
       margin-top: 0;
       margin-bottom: 10px;
     }
+    #captureStatus {
+      font-size: 1.17em; /* h3 default size */
+      font-weight: bold;
+      margin-bottom: 10px; /* Match h3 margin */
+      display: block; /* Ensure it takes full width */
+    }
   </style>
 </head>
 <body>
   <h2>Libby Audiobook Helper</h2>
-  <p>Current status: <span id="captureStatus">Monitoring for media URLs</span></p>
+
 
   <div class="metadata-section">
     <h3>Audiobook Metadata</h3>
@@ -92,8 +91,9 @@
       <input type="text" id="authorName" placeholder="Enter author name">
     </div>
   </div>
-  
-  <button id="showUrlsBtn">Show URLs</button>
+
+  <span id="captureStatus">0 URLs captured</span>
+
   <button id="downloadUrlsBtn">Download with ID3 Tags</button>
   <button id="clearUrlsBtn">Clear URLs</button>
   

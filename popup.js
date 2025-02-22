@@ -4,7 +4,6 @@ document.addEventListener('DOMContentLoaded', function() {
   const authorNameInput = document.getElementById('authorName');
   
   // Get button elements
-  const showUrlsBtn = document.getElementById('showUrlsBtn');
   const clearUrlsBtn = document.getElementById('clearUrlsBtn');
   const downloadUrlsBtn = document.getElementById('downloadUrlsBtn');
   const statusDiv = document.getElementById('status');
@@ -37,7 +36,7 @@ document.addEventListener('DOMContentLoaded', function() {
   function updateCaptureStatus() {
     chrome.storage.local.get(['capturedURLs'], function(result) {
       const count = result.capturedURLs ? result.capturedURLs.length : 0;
-      captureStatusSpan.textContent = `Monitoring for media URLs (${count} captured)`;
+      captureStatusSpan.textContent = `${count} URLs captured`;
       
       // Disable download button if fields are empty or no URLs captured
       const metadataComplete = bookTitleInput.value.trim() !== '' && authorNameInput.value.trim() !== '';
@@ -56,20 +55,7 @@ document.addEventListener('DOMContentLoaded', function() {
   // Update status when input fields change
   bookTitleInput.addEventListener('input', updateCaptureStatus);
   authorNameInput.addEventListener('input', updateCaptureStatus);
-  
-  // Add click event listener for Show URLs button
-  showUrlsBtn.addEventListener('click', function() {
-    // Send message to the background script
-    chrome.runtime.sendMessage({action: "getURLs"}, function(response) {
-      if (response) {
-        statusDiv.textContent = `${response.status} (${response.count} URLs)`;
-        updateCaptureStatus();
-      } else {
-        statusDiv.textContent = "Error: Could not communicate with extension background process";
-      }
-    });
-  });
-  
+
   // Add click event listener for Clear URLs button
   clearUrlsBtn.addEventListener('click', function() {
     // Send message to the background script to clear URLs

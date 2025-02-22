@@ -14,11 +14,11 @@ chrome.webRequest.onBeforeRequest.addListener(
     // Check if the URL contains our target pattern
     if (details.url.includes('odrmediaclips.cachefly.net') && details.type === 'media') {
       console.log("Captured media URL:", details.url);
-      
+
       // Add the URL to our list if not already present
       if (!capturedURLs.includes(details.url)) {
         capturedURLs.push(details.url);
-        
+
         // Store the updated list in chrome.storage
         chrome.storage.local.set({capturedURLs: capturedURLs});
       }
@@ -34,6 +34,14 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   if (changeInfo.status === 'complete') {
     clearCapturedURLs();
     console.log("Page loaded/reloaded. URL tracking reset for tab:", tabId);
+
+    // **ADD THIS URL CHECK:**
+    const libbyURLPattern = /^https:\/\/.*\.overdrive\.com\/.*/; 
+    if (!tab.url || !libbyURLPattern.test(tab.url)) {
+      console.log("Skipping content script injection: URL does not match Libby's domain.");
+      return; // Don't inject if not on a Libby page
+    }
+
 
     // Prevent multiple injections
     chrome.tabs.sendMessage(tabId, { action: "ping" }, (response) => {
@@ -61,7 +69,7 @@ async function ensureContentScriptLoaded(tabId) {
     chrome.tabs.sendMessage(tabId, { action: "ping" }, response => {
       if (chrome.runtime.lastError || !response) {
         console.log("Content script not ready, injecting it now");
-        
+
         // Inject content script
         chrome.scripting.executeScript({
           target: {tabId: tabId},
@@ -88,19 +96,19 @@ async function downloadAudioFile(url, filename, metadata) {
     if (!tabs || tabs.length === 0) {
       throw new Error("No active tab found");
     }
-    
+
     const activeTab = tabs[0];
-    
+
     // Ensure content script is loaded first
     await ensureContentScriptLoaded(activeTab.id);
-    
+
     // Now send the download message with metadata
     return new Promise((resolve, reject) => {
       chrome.tabs.sendMessage(
         activeTab.id,
-        { 
-          action: "downloadWithFetch", 
-          url: url, 
+        {
+          action: "downloadWithFetch",
+          url: url,
           filename: filename,
           metadata: metadata
         },
@@ -138,7 +146,7 @@ chrome.runtime.onMessage.addListener(
         }
       });
       return true; // Required for async sendResponse
-    } 
+    }
     else if (request.action === "clearURLs") {
       // Clear the URLs
       clearCapturedURLs();
@@ -157,17 +165,17 @@ chrome.runtime.onMessage.addListener(
           responded = true;
           sendResponse({ success: false, error: error.message });
         });
-  
+
       // Failsafe timeout to avoid message channel closing unexpectedly
       setTimeout(() => {
         if (!responded) {
           sendResponse({ success: false, error: "Timeout: No response received" });
         }
       }, 5000); // Adjust timeout if needed
-  
+
       return true; // Keeps the message channel open
     }
-  
+
     // Check if content script is ready
     else if (request.action === "contentScriptReady") {
       console.log("Content script is ready");
