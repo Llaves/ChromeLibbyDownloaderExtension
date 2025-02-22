@@ -30,25 +30,29 @@ chrome.webRequest.onBeforeRequest.addListener(
   ["requestBody"]
 );
 
-// Listen for tab updates to detect page reloads
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
-  // Check if the page has completed loading
   if (changeInfo.status === 'complete') {
-    // Clear the URL list when a page is reloaded/loaded
     clearCapturedURLs();
     console.log("Page loaded/reloaded. URL tracking reset for tab:", tabId);
-    
-    // Pre-inject the content script to avoid delay on first download
-    chrome.scripting.executeScript({
-      target: {tabId: tabId},
-      files: ['downloadHelper.js']
-    }).then(() => {
-      console.log("Content script pre-injected on page load");
-    }).catch(err => {
-      console.error("Failed to pre-inject content script:", err);
+
+    // Prevent multiple injections
+    chrome.tabs.sendMessage(tabId, { action: "ping" }, (response) => {
+      if (chrome.runtime.lastError || !response) {
+        chrome.scripting.executeScript({
+          target: { tabId: tabId },
+          files: ['browser-id3-writer.js', 'downloadHelper.js']
+        }).then(() => {
+          console.log("Content scripts pre-injected on page load");
+        }).catch(err => {
+          console.error("Failed to pre-inject content scripts:", err);
+        });
+      } else {
+        console.log("Content script already loaded");
+      }
     });
   }
 });
+
 
 // Ensure content script is loaded before attempting download
 async function ensureContentScriptLoaded(tabId) {
@@ -61,7 +65,7 @@ async function ensureContentScriptLoaded(tabId) {
         // Inject content script
         chrome.scripting.executeScript({
           target: {tabId: tabId},
-          files: ['downloadHelper.js']
+          files: ['browser-id3-writer.js', 'downloadHelper.js']
         }).then(() => {
           // Wait for content script to initialize
           setTimeout(resolve, 500);
@@ -77,7 +81,7 @@ async function ensureContentScriptLoaded(tabId) {
 }
 
 // Use content script to download with the proper headers
-async function downloadAudioFile(url, filename) {
+async function downloadAudioFile(url, filename, metadata) {
   try {
     // Get the active tab
     const tabs = await chrome.tabs.query({active: true, currentWindow: true});
@@ -90,14 +94,15 @@ async function downloadAudioFile(url, filename) {
     // Ensure content script is loaded first
     await ensureContentScriptLoaded(activeTab.id);
     
-    // Now send the download message
+    // Now send the download message with metadata
     return new Promise((resolve, reject) => {
       chrome.tabs.sendMessage(
         activeTab.id,
         { 
           action: "downloadWithFetch", 
           url: url, 
-          filename: filename 
+          filename: filename,
+          metadata: metadata
         },
         function(response) {
           if (chrome.runtime.lastError) {
@@ -141,16 +146,29 @@ chrome.runtime.onMessage.addListener(
       sendResponse({status: "URLs cleared", count: 0});
     }
     else if (request.action === "downloadURL") {
-      // Download the audio file through content script
-      downloadAudioFile(request.url, request.filename)
+      let responded = false;
+
+      downloadAudioFile(request.url, request.filename, request.metadata)
         .then(() => {
-          sendResponse({success: true});
+          responded = true;
+          sendResponse({ success: true });
         })
         .catch(error => {
-          sendResponse({success: false, error: error.message});
+          responded = true;
+          sendResponse({ success: false, error: error.message });
         });
-      return true; // Required for async sendResponse
+  
+      // Failsafe timeout to avoid message channel closing unexpectedly
+      setTimeout(() => {
+        if (!responded) {
+          sendResponse({ success: false, error: "Timeout: No response received" });
+        }
+      }, 5000); // Adjust timeout if needed
+  
+      return true; // Keeps the message channel open
     }
+  
+    // Check if content script is ready
     else if (request.action === "contentScriptReady") {
       console.log("Content script is ready");
     }

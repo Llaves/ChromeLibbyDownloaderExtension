@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Libby Audiobook Helper",
   "version": "0.1",
-  "description": "Captures audiobook media URLs from Overdrive Libby",
+  "description": "Captures audiobook media URLs from Overdrive Libby with ID3 tagging",
   "permissions": [
     "webRequest",
     "storage",
@@ -22,7 +22,13 @@
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
-      "js": ["downloadHelper.js"]
+      "js": ["browser-id3-writer.js", "downloadHelper.js"]
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["browser-id3-writer.js"],
+      "matches": ["<all_urls>"]
     }
   ],
   "action": {

@@ -1,4 +1,8 @@
 document.addEventListener('DOMContentLoaded', function() {
+  // Get form elements
+  const bookTitleInput = document.getElementById('bookTitle');
+  const authorNameInput = document.getElementById('authorName');
+  
   // Get button elements
   const showUrlsBtn = document.getElementById('showUrlsBtn');
   const clearUrlsBtn = document.getElementById('clearUrlsBtn');
@@ -10,6 +14,23 @@ document.addEventListener('DOMContentLoaded', function() {
   const totalCountSpan = document.getElementById('totalCount');
   const downloadProgress = document.getElementById('downloadProgress');
   
+  // Load saved metadata if available
+  chrome.storage.local.get(['bookTitle', 'authorName'], function(result) {
+    if (result.bookTitle) bookTitleInput.value = result.bookTitle;
+    if (result.authorName) authorNameInput.value = result.authorName;
+  });
+  
+  // Save metadata when changed
+  bookTitleInput.addEventListener('change', saveMetadata);
+  authorNameInput.addEventListener('change', saveMetadata);
+  
+  function saveMetadata() {
+    chrome.storage.local.set({
+      'bookTitle': bookTitleInput.value,
+      'authorName': authorNameInput.value
+    });
+  }
+  
   // Check current capture status and URL count
   updateCaptureStatus();
   
@@ -17,8 +38,24 @@ document.addEventListener('DOMContentLoaded', function() {
     chrome.storage.local.get(['capturedURLs'], function(result) {
       const count = result.capturedURLs ? result.capturedURLs.length : 0;
       captureStatusSpan.textContent = `Monitoring for media URLs (${count} captured)`;
+      
+      // Disable download button if fields are empty or no URLs captured
+      const metadataComplete = bookTitleInput.value.trim() !== '' && authorNameInput.value.trim() !== '';
+      downloadUrlsBtn.disabled = count === 0 || !metadataComplete;
+      
+      if (count === 0) {
+        statusDiv.textContent = "Capture some media URLs first";
+      } else if (!metadataComplete) {
+        statusDiv.textContent = "Please fill in the book title and author";
+      } else {
+        statusDiv.textContent = "Ready to download";
+      }
     });
   }
+  
+  // Update status when input fields change
+  bookTitleInput.addEventListener('input', updateCaptureStatus);
+  authorNameInput.addEventListener('input', updateCaptureStatus);
   
   // Add click event listener for Show URLs button
   showUrlsBtn.addEventListener('click', function() {
@@ -48,6 +85,17 @@ document.addEventListener('DOMContentLoaded', function() {
   
   // Add click event listener for Download URLs button
   downloadUrlsBtn.addEventListener('click', function() {
+    // Save metadata before downloading
+    saveMetadata();
+    
+    const bookTitle = bookTitleInput.value.trim();
+    const authorName = authorNameInput.value.trim();
+    
+    if (!bookTitle || !authorName) {
+      statusDiv.textContent = "Please enter book title and author name";
+      return;
+    }
+    
     chrome.storage.local.get(['capturedURLs'], async function(result) {
       if (!result.capturedURLs || result.capturedURLs.length === 0) {
         statusDiv.textContent = "No URLs to download";
@@ -65,14 +113,26 @@ document.addEventListener('DOMContentLoaded', function() {
       
       try {
         for (let i = 0; i < urls.length; i++) {
-          downloadCountSpan.textContent = i + 1;
-          downloadProgress.value = i + 1;
+          const trackNumber = i + 1;
+          downloadCountSpan.textContent = trackNumber;
+          downloadProgress.value = trackNumber;
           
-          // Download file
-          await downloadFile(urls[i], `UnknownBook - Part ${i + 1}.mp3`);
+          // Prepare metadata
+          const metadata = {
+            title: `${bookTitle} - Part ${trackNumber}`,
+            artist: authorName,
+            author: authorName,
+            trackNumber: trackNumber
+          };
+          
+          // Generate filename
+          const filename = `${bookTitle} - Part ${trackNumber}.mp3`;
+          
+          // Download file with ID3 tags
+          await downloadFile(urls[i], filename, metadata);
           
           // Update status
-          statusDiv.textContent = `Downloaded ${i + 1}/${urls.length} files`;
+          statusDiv.textContent = `Downloaded ${trackNumber}/${urls.length} files`;
         }
         statusDiv.textContent = `Successfully downloaded all ${urls.length} files!`;
       } catch (error) {
@@ -84,14 +144,15 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   });
   
-  // Function to download a file
-  async function downloadFile(url, filename) {
+  // Function to download a file with ID3 tags
+  async function downloadFile(url, filename, metadata) {
     return new Promise((resolve, reject) => {
       chrome.runtime.sendMessage(
         { 
           action: "downloadURL", 
           url: url, 
-          filename: filename 
+          filename: filename,
+          metadata: metadata
         }, 
         function(response) {
           if (response && response.success) {
