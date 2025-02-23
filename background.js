@@ -32,15 +32,41 @@ chrome.webRequest.onBeforeRequest.addListener(
 
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   if (changeInfo.status === 'complete') {
+    // **ADD THIS URL CHECK:**
+    const libbyURLPattern = /^https:\/\/.*\.libbyapp\.com\/.*/; // Example pattern, adjust as needed
+
+      if (!tab.url || !libbyURLPattern.test(tab.url)) {
+          console.log("Skipping content script injection: URL does not match Libby's domain.");
+          return; // Don't inject if not on a Libby page
+      }
+
+      chrome.tabs.get(tabId, function(updatedTab) { // Use chrome.tabs.get to get the latest tab info
+          if (chrome.runtime.lastError) {
+              console.error("Error getting tab info:", chrome.runtime.lastError.message);
+              return;
+          }
+
+          console.log(`Tab updated, tabId: ${tabId}, tab:`, updatedTab); // Log all tab info
+
+          if (updatedTab.title) {
+              console.log("Tab title:", updatedTab.title);
+              chrome.storage.local.get(['bookTitle'], function(result) {
+                  const currentTitle = result.bookTitle || "";
+                  console.log(`Current book title in storage: "${currentTitle}"`);
+                  if (updatedTab.title !== currentTitle && updatedTab.title.trim() !== "") {
+                      console.log(`Tab title changed from "${currentTitle}" to "${updatedTab.title}". Updating book title and clearing author.`);
+                      chrome.storage.local.set({ bookTitle: updatedTab.title, authorName: "" }, () => {
+                           console.log("Book title and author cleared in storage."); // Confirmation log
+                      });
+                  }
+              });
+          }
+      });
+
+
     clearCapturedURLs();
     console.log("Page loaded/reloaded. URL tracking reset for tab:", tabId);
 
-    // **ADD THIS URL CHECK:**
-    const libbyURLPattern = /^https:\/\/.*\.overdrive\.com\/.*/; 
-    if (!tab.url || !libbyURLPattern.test(tab.url)) {
-      console.log("Skipping content script injection: URL does not match Libby's domain.");
-      return; // Don't inject if not on a Libby page
-    }
 
 
     // Prevent multiple injections
@@ -189,4 +215,80 @@ chrome.runtime.onMessage.addListener(
 chrome.runtime.onInstalled.addListener(function() {
   clearCapturedURLs();
   console.log("Libby Audiobook Helper installed/updated. URL tracking initialized.");
+});
+
+function registerTabListener() {
+  chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+      if (changeInfo.status === 'complete') {
+          // **ADD THIS URL CHECK:**
+          const libbyURLPattern = /^https:\/\/.*\.libbyapp\.com\/.*/; // Example pattern, adjust as needed
+
+          if (!tab.url || !libbyURLPattern.test(tab.url)) {
+              console.log("Skipping content script injection: URL does not match Libby's domain.");
+              return; // Don't inject if not on a Libby page
+          }
+
+          chrome.tabs.get(tabId, function (updatedTab) { // Use chrome.tabs.get to get the latest tab info
+              if (chrome.runtime.lastError) {
+                  console.error("Error getting tab info:", chrome.runtime.lastError.message);
+                  return;
+              }
+
+              console.log(`Tab updated, tabId: ${tabId}, tab:`, updatedTab); // Log all tab info
+
+              if (updatedTab.title) {
+                  console.log("Tab title:", updatedTab.title);
+                  chrome.storage.local.get(['bookTitle'], function (result) {
+                      const currentTitle = result.bookTitle || "";
+                      console.log(`Current book title in storage: "${currentTitle}"`);
+                      if (updatedTab.title !== currentTitle && updatedTab.title.trim() !== "") {
+                          console.log(`Tab title changed from "${currentTitle}" to "${updatedTab.title}". Updating book title and clearing author.`);
+                          chrome.storage.local.set({ bookTitle: updatedTab.title, authorName: "" }, () => {
+                              console.log("Book title and author cleared in storage."); // Confirmation log
+                          });
+                      }
+                  });
+              }
+          });
+
+
+          clearCapturedURLs();
+          console.log("Page loaded/reloaded. URL tracking reset for tab:", tabId);
+
+
+          // Prevent multiple injections
+          chrome.tabs.sendMessage(tabId, { action: "ping" }, (response) => {
+              if (chrome.runtime.lastError || !response) {
+                  chrome.scripting.executeScript({
+                      target: { tabId: tabId },
+                      files: ['browser-id3-writer.js', 'downloadHelper.js']
+                  }).then(() => {
+                      console.log("Content scripts pre-injected on page load");
+                  }).catch(err => {
+                      console.error("Failed to pre-inject content scripts:", err);
+                  });
+              } else {
+                  console.log("Content script already loaded");
+              }
+          });
+      }
+  });
+}
+
+
+// Register the listener when the service worker starts
+registerTabListener();
+
+
+// Clear captured URLs on extension install/update
+chrome.runtime.onInstalled.addListener(function() {
+  clearCapturedURLs();
+  console.log("Libby Audiobook Helper installed/updated. URL tracking initialized.");
+    registerTabListener(); // Also register on install/update
+});
+
+//Also register when the service worker is started
+chrome.runtime.onStartup.addListener(() => {
+    console.log("Service worker started");
+    registerTabListener();
 });

@@ -2,8 +2,9 @@ document.addEventListener('DOMContentLoaded', function() {
   // Get form elements
   const bookTitleInput = document.getElementById('bookTitle');
   const authorNameInput = document.getElementById('authorName');
-  
+
   // Get button elements
+  const startCaptureBtn = document.getElementById('startCaptureBtn'); // New button
   const clearUrlsBtn = document.getElementById('clearUrlsBtn');
   const downloadUrlsBtn = document.getElementById('downloadUrlsBtn');
   const statusDiv = document.getElementById('status');
@@ -12,36 +13,36 @@ document.addEventListener('DOMContentLoaded', function() {
   const downloadCountSpan = document.getElementById('downloadCount');
   const totalCountSpan = document.getElementById('totalCount');
   const downloadProgress = document.getElementById('downloadProgress');
-  
+
   // Load saved metadata if available
   chrome.storage.local.get(['bookTitle', 'authorName'], function(result) {
     if (result.bookTitle) bookTitleInput.value = result.bookTitle;
     if (result.authorName) authorNameInput.value = result.authorName;
   });
-  
+
   // Save metadata when changed
   bookTitleInput.addEventListener('change', saveMetadata);
   authorNameInput.addEventListener('change', saveMetadata);
-  
+
   function saveMetadata() {
     chrome.storage.local.set({
       'bookTitle': bookTitleInput.value,
       'authorName': authorNameInput.value
     });
   }
-  
+
   // Check current capture status and URL count
   updateCaptureStatus();
-  
+
   function updateCaptureStatus() {
     chrome.storage.local.get(['capturedURLs'], function(result) {
       const count = result.capturedURLs ? result.capturedURLs.length : 0;
       captureStatusSpan.textContent = `${count} URLs captured`;
-      
+
       // Disable download button if fields are empty or no URLs captured
       const metadataComplete = bookTitleInput.value.trim() !== '' && authorNameInput.value.trim() !== '';
       downloadUrlsBtn.disabled = count === 0 || !metadataComplete;
-      
+
       if (count === 0) {
         statusDiv.textContent = "Capture some media URLs first";
       } else if (!metadataComplete) {
@@ -51,12 +52,30 @@ document.addEventListener('DOMContentLoaded', function() {
       }
     });
   }
-  
+
   // Update status when input fields change
   bookTitleInput.addEventListener('input', updateCaptureStatus);
   authorNameInput.addEventListener('input', updateCaptureStatus);
 
-  // Add click event listener for Clear URLs button
+  // Add click listener for the "Start Capture" button
+  startCaptureBtn.addEventListener('click', function() {
+    statusDiv.textContent = "Starting capture process...";
+    // Send message to content script to start the download process
+    chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+      const activeTab = tabs[0];
+      chrome.tabs.sendMessage(activeTab.id, {action: "startCapture"}, (response) => {
+        if (chrome.runtime.lastError) {
+          statusDiv.textContent = "Error: " + chrome.runtime.lastError.message;
+        } else if (response && response.success) {
+          statusDiv.textContent = "Capture process started in content script.";
+        } else {
+          statusDiv.textContent = "Capture process failed to start.";
+        }
+      });
+    });
+  });
+
+  // Add click listener for the "Clear URLs" button
   clearUrlsBtn.addEventListener('click', function() {
     // Send message to the background script to clear URLs
     chrome.runtime.sendMessage({action: "clearURLs"}, function(response) {
@@ -68,41 +87,41 @@ document.addEventListener('DOMContentLoaded', function() {
       }
     });
   });
-  
-  // Add click event listener for Download URLs button
+
+  // Add click listener for the "Download URLs" button
   downloadUrlsBtn.addEventListener('click', function() {
     // Save metadata before downloading
     saveMetadata();
-    
+
     const bookTitle = bookTitleInput.value.trim();
     const authorName = authorNameInput.value.trim();
-    
+
     if (!bookTitle || !authorName) {
       statusDiv.textContent = "Please enter book title and author name";
       return;
     }
-    
+
     chrome.storage.local.get(['capturedURLs'], async function(result) {
       if (!result.capturedURLs || result.capturedURLs.length === 0) {
         statusDiv.textContent = "No URLs to download";
         return;
       }
-      
+
       const urls = result.capturedURLs;
       downloadUrlsBtn.disabled = true;
       statusDiv.textContent = `Starting download of ${urls.length} files...`;
-      
+
       // Show progress
       progressDiv.style.display = 'block';
       totalCountSpan.textContent = urls.length;
       downloadProgress.max = urls.length;
-      
+
       try {
         for (let i = 0; i < urls.length; i++) {
           const trackNumber = i + 1;
           downloadCountSpan.textContent = trackNumber;
           downloadProgress.value = trackNumber;
-          
+
           // Prepare metadata
           const metadata = {
             title: `${bookTitle} - Part ${trackNumber}`,
@@ -110,13 +129,13 @@ document.addEventListener('DOMContentLoaded', function() {
             author: authorName,
             trackNumber: trackNumber
           };
-          
+
           // Generate filename
           const filename = `${bookTitle} - Part ${trackNumber}.mp3`;
-          
+
           // Download file with ID3 tags
           await downloadFile(urls[i], filename, metadata);
-          
+
           // Update status
           statusDiv.textContent = `Downloaded ${trackNumber}/${urls.length} files`;
         }
@@ -129,17 +148,17 @@ document.addEventListener('DOMContentLoaded', function() {
       }
     });
   });
-  
+
   // Function to download a file with ID3 tags
   async function downloadFile(url, filename, metadata) {
     return new Promise((resolve, reject) => {
       chrome.runtime.sendMessage(
-        { 
-          action: "downloadURL", 
-          url: url, 
+        {
+          action: "downloadURL",
+          url: url,
           filename: filename,
           metadata: metadata
-        }, 
+        },
         function(response) {
           if (response && response.success) {
             resolve();
