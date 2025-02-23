@@ -153,4 +153,12 @@ document.addEventListener('DOMContentLoaded', function() {
             );
         });
     }
+
+    // Listen for messages from the background script (for author field update)
+    chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
+      if (request.action === "updateAuthorField") {
+        authorNameInput.value = '';
+        updateCaptureStatus(); // Refresh the capture status
+      }
+    });
 });

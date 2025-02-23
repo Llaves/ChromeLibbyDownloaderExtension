@@ -30,10 +30,46 @@ chrome.webRequest.onBeforeRequest.addListener(
   ["requestBody"]
 );
 
+// Function to extract title from tab and update storage.
+async function extractTitleAndUpdate(tabId) {
+  try {
+    const results = await chrome.scripting.executeScript({
+      target: { tabId: tabId },
+      function: () => document.title,
+    });
+
+    const pageTitle = results?.[0]?.result;
+
+    if (pageTitle) {
+      chrome.storage.local.get(['bookTitle'], function(result) {
+        const storedTitle = result.bookTitle;
+
+        if (storedTitle && storedTitle !== pageTitle) {
+          // Titles don't match, clear author name
+          chrome.storage.local.set({ authorName: '', bookTitle: pageTitle }, () => {
+            console.log("Title changed, author name cleared.");
+
+            // Optionally, send message to popup to update author field.
+            chrome.runtime.sendMessage({ action: "updateAuthorField" });
+          });
+        } else {
+          // Titles match or no stored title
+          chrome.storage.local.set({ bookTitle: pageTitle });
+        }
+      });
+    }
+  } catch (error) {
+    console.error("Error extracting title:", error);
+  }
+}
+
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   if (changeInfo.status === 'complete') {
     clearCapturedURLs();
     console.log("Page loaded/reloaded. URL tracking reset for tab:", tabId);
+
+    // Extract Title and update bookTitle in storage
+    extractTitleAndUpdate(tabId);
 
     // Prevent multiple injections
     chrome.tabs.sendMessage(tabId, { action: "ping" }, (response) => {
@@ -166,6 +202,13 @@ chrome.runtime.onMessage.addListener(
       }, 5000); // Adjust timeout if needed
   
       return true; // Keeps the message channel open
+    }
+    else if (request.action === "updateAuthorField") {
+      // Popup needs to update its author field
+      chrome.storage.local.get({ authorName: '' }, function(result) {
+        sendResponse({ authorName: result.authorName });
+      });
+      return true; // Keep the message channel open
     }
   
     // Check if content script is ready
