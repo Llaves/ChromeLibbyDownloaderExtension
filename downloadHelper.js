@@ -1,3 +1,5 @@
+// downloadHelper.js
+
 // Listen for messages from the background script
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === "downloadWithFetch") {
@@ -54,7 +56,8 @@ async function fetchAndDownload(url, filename, metadata) {
         writer.setFrame('TIT2', metadata.title)            // Title
               .setFrame('TPE1', [metadata.artist])         // Artist
               .setFrame('TCOM', [metadata.author])         // Composer (using for Author)
-              .setFrame('TRCK', String(metadata.trackNumber)); // Track number
+              .setFrame('TRCK', String(metadata.trackNumber)) // Track number
+              .setFrame('TALB', metadata.album);             // Album Title
         
         // Apply changes
         writer.addTag();
