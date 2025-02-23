@@ -1,5 +1,3 @@
-// popup.js
-
 document.addEventListener('DOMContentLoaded', function() {
     // Get form elements
     const bookTitleInput = document.getElementById('bookTitle');
@@ -8,6 +6,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Get button elements
     const clearUrlsBtn = document.getElementById('clearUrlsBtn');
     const downloadUrlsBtn = document.getElementById('downloadUrlsBtn');
+    const captureAudioBtn = document.getElementById('captureAudioBtn'); // New button
     const statusDiv = document.getElementById('status');
     const captureStatusDiv = document.getElementById('captureStatus'); // Changed to div
     const progressDiv = document.querySelector('.progress');
@@ -137,12 +136,12 @@ document.addEventListener('DOMContentLoaded', function() {
     async function downloadFile(url, filename, metadata) {
         return new Promise((resolve, reject) => {
             chrome.runtime.sendMessage(
-                { 
-                    action: "downloadURL", 
-                    url: url, 
+                {
+                    action: "downloadURL",
+                    url: url,
                     filename: filename,
                     metadata: metadata
-                }, 
+                },
                 function(response) {
                     if (response && response.success) {
                         resolve();
@@ -160,5 +159,17 @@ document.addEventListener('DOMContentLoaded', function() {
         authorNameInput.value = '';
         updateCaptureStatus(); // Refresh the capture status
       }
+    });
+
+    //Add click event listener for Capture Audio button
+    captureAudioBtn.addEventListener('click', function() {
+        // Send message to the background script to trigger capture
+        chrome.runtime.sendMessage({action: "captureAudio"}, function(response) {
+            if (response && response.status) {
+                statusDiv.textContent = response.status;
+            } else {
+                statusDiv.textContent = "Error triggering audio capture.";
+            }
+        });
     });
 });

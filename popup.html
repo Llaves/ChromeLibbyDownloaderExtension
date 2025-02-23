@@ -10,9 +10,7 @@
     }
     button {
       padding: 8px 15px;
-      /*background-color: #4285f4;*/
       background-color: #f0f0f0; /* Light Grey */
-      /*color: white;*/
       color: black;
       border: 1px solid black; /* Black Border */
       border-radius: 8px; /* Rounded Corners */
@@ -21,7 +19,6 @@
       margin-top: 10px;
     }
     button:hover {
-      /*background-color: #3367d6;*/
       background-color: #e0e0e0;
     }
     button:disabled {
@@ -39,6 +36,9 @@
     }
     #downloadUrlsBtn:hover {
       /*background-color: #2d9246;*/
+    }
+     #captureAudioBtn { /* Style for Capture Audio button */
+      /*background-color: #4CAF50;*/ /* Green */
     }
     #status {
       margin-top: 15px;
@@ -84,7 +84,7 @@
 </head>
 <body>
   <h2>Libby Audiobook Helper</h2>
-  
+
   <div class="metadata-section">
     <h3>Audiobook Metadata</h3>
     <div class="form-group">
@@ -99,16 +99,17 @@
 
   <p></p>
   <div id="captureStatus">Monitoring for media URLs</div>
-  
+
+  <button id="captureAudioBtn">Capture Audio</button>  <!-- New Button -->
   <button id="downloadUrlsBtn">Download with ID3 Tags</button>
   <button id="clearUrlsBtn">Clear URLs</button>
-  
+
   <div class="progress">
     <p>Downloading: <span id="downloadCount">0</span>/<span id="totalCount">0</span></p>
     <progress id="downloadProgress" value="0" max="100"></progress>
   </div>
   <div id="status"></div>
-  
+
   <script src="popup.js"></script>
 </body>
 </html>

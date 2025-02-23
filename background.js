@@ -14,11 +14,11 @@ chrome.webRequest.onBeforeRequest.addListener(
     // Check if the URL contains our target pattern
     if (details.url.includes('odrmediaclips.cachefly.net') && details.type === 'media') {
       console.log("Captured media URL:", details.url);
-      
+
       // Add the URL to our list if not already present
       if (!capturedURLs.includes(details.url)) {
         capturedURLs.push(details.url);
-        
+
         // Store the updated list in chrome.storage
         chrome.storage.local.set({capturedURLs: capturedURLs});
       }
@@ -97,7 +97,7 @@ async function ensureContentScriptLoaded(tabId) {
     chrome.tabs.sendMessage(tabId, { action: "ping" }, response => {
       if (chrome.runtime.lastError || !response) {
         console.log("Content script not ready, injecting it now");
-        
+
         // Inject content script
         chrome.scripting.executeScript({
           target: {tabId: tabId},
@@ -124,19 +124,19 @@ async function downloadAudioFile(url, filename, metadata) {
     if (!tabs || tabs.length === 0) {
       throw new Error("No active tab found");
     }
-    
+
     const activeTab = tabs[0];
-    
+
     // Ensure content script is loaded first
     await ensureContentScriptLoaded(activeTab.id);
-    
+
     // Now send the download message with metadata
     return new Promise((resolve, reject) => {
       chrome.tabs.sendMessage(
         activeTab.id,
-        { 
-          action: "downloadWithFetch", 
-          url: url, 
+        {
+          action: "downloadWithFetch",
+          url: url,
           filename: filename,
           metadata: metadata
         },
@@ -174,7 +174,7 @@ chrome.runtime.onMessage.addListener(
         }
       });
       return true; // Required for async sendResponse
-    } 
+    }
     else if (request.action === "clearURLs") {
       // Clear the URLs
       clearCapturedURLs();
@@ -193,14 +193,14 @@ chrome.runtime.onMessage.addListener(
           responded = true;
           sendResponse({ success: false, error: error.message });
         });
-  
+
       // Failsafe timeout to avoid message channel closing unexpectedly
       setTimeout(() => {
         if (!responded) {
           sendResponse({ success: false, error: "Timeout: No response received" });
         }
       }, 5000); // Adjust timeout if needed
-  
+
       return true; // Keeps the message channel open
     }
     else if (request.action === "updateAuthorField") {
@@ -210,7 +210,37 @@ chrome.runtime.onMessage.addListener(
       });
       return true; // Keep the message channel open
     }
-  
+    // Add captureAudio action
+    else if (request.action === "captureAudio") {
+      //Get the active tab
+      chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+        if (!tabs || tabs.length === 0) {
+          sendResponse({status: "Error: No active tab found"});
+          return;
+        }
+        const activeTabId = tabs[0].id;
+
+        // Ensure content script is loaded first
+        ensureContentScriptLoaded(activeTabId)
+          .then(() => {
+            // Send message to content script to start capturing audio
+            chrome.tabs.sendMessage(activeTabId, {action: "startAudioCapture"}, function(response) {
+              if (chrome.runtime.lastError) {
+                sendResponse({status: "Error: " + chrome.runtime.lastError.message});
+              } else if (response && response.status) {
+                sendResponse({status: response.status});
+              } else {
+                sendResponse({status: "Error: Could not start audio capture."});
+              }
+            });
+          })
+          .catch(error => {
+            sendResponse({status: "Error: " + error.message});
+          });
+      });
+      return true; // Required for async response
+    }
+
     // Check if content script is ready
     else if (request.action === "contentScriptReady") {
       console.log("Content script is ready");
