@@ -33,6 +33,13 @@ chrome.webRequest.onBeforeRequest.addListener(
 // Function to extract title from tab and update storage.
 async function extractTitleAndUpdate(tabId) {
   try {
+    // Check if the tab URL indicates an audiobook page.
+    const tab = await chrome.tabs.get(tabId);
+    if (!tab || !tab.url || !tab.url.includes("libbyapp.com")) { // Or a more specific check.
+      console.log("Not an audiobook tab, skipping title extraction.");
+      return;
+    }
+
     const results = await chrome.scripting.executeScript({
       target: { tabId: tabId },
       function: () => document.title,
@@ -63,30 +70,35 @@ async function extractTitleAndUpdate(tabId) {
   }
 }
 
-chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
-  if (changeInfo.status === 'complete') {
-    clearCapturedURLs();
-    console.log("Page loaded/reloaded. URL tracking reset for tab:", tabId);
+chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
+    if (changeInfo.status === 'complete') {
+        clearCapturedURLs();
+        console.log("Page loaded/reloaded. URL tracking reset for tab:", tabId);
 
-    // Extract Title and update bookTitle in storage
-    extractTitleAndUpdate(tabId);
+        // Extract Title and update bookTitle in storage
+        extractTitleAndUpdate(tabId);
 
-    // Prevent multiple injections
-    chrome.tabs.sendMessage(tabId, { action: "ping" }, (response) => {
-      if (chrome.runtime.lastError || !response) {
-        chrome.scripting.executeScript({
-          target: { tabId: tabId },
-          files: ['browser-id3-writer.js', 'downloadHelper.js']
-        }).then(() => {
-          console.log("Content scripts pre-injected on page load");
-        }).catch(err => {
-          console.error("Failed to pre-inject content scripts:", err);
-        });
-      } else {
-        console.log("Content script already loaded");
-      }
-    });
-  }
+        // **Check if it's a Libby Audiobook Tab before injecting content scripts**
+        if (tab && tab.url && tab.url.includes("libbyapp.com")) {
+            // Prevent multiple injections
+            chrome.tabs.sendMessage(tabId, { action: "ping" }, (response) => {
+                if (chrome.runtime.lastError || !response) {
+                    chrome.scripting.executeScript({
+                        target: { tabId: tabId },
+                        files: ['browser-id3-writer.js', 'downloadHelper.js']
+                    }).then(() => {
+                        console.log("Content scripts pre-injected on page load");
+                    }).catch(err => {
+                        console.error("Failed to pre-inject content scripts:", err);
+                    });
+                } else {
+                    console.log("Content script already loaded");
+                }
+            });
+        } else {
+            console.log("Not a Libby Audiobook tab, skipping content script injection.");
+        }
+    }
 });
 
 
