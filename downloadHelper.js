@@ -40,6 +40,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 // Function to fetch and download with proper headers and add ID3 tags
 async function fetchAndDownload(url, filename, metadata) {
   try {
+    console.log("Received metadata:", metadata); // Add this log
     console.log(`Content script fetching: ${url}`);
     console.log(`Adding ID3 tags:`, metadata);
 
@@ -117,7 +118,7 @@ async function startDownloadProcess() {
   const playButton = document.querySelector('button[aria-label="Play"].playback-toggle.halo');
   if (playButton) {
     playButton.click();
-    await delay(1000); // Give it a second to start playing
+    await delay(2000); // Give it a second to start playing
   } else {
     console.error("Play button not found.");
     throw new Error("Play button not found."); // Throw error to be caught in popup.js

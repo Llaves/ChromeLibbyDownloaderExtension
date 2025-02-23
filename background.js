@@ -88,29 +88,29 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
 });
 
 
-// Ensure content script is loaded before attempting download
+// Ensure content script is loaded before attempting download - IMPROVED
 async function ensureContentScriptLoaded(tabId) {
   return new Promise((resolve, reject) => {
-    // Check if content script is responsive
-    chrome.tabs.sendMessage(tabId, { action: "ping" }, response => {
-      if (chrome.runtime.lastError || !response) {
-        console.log("Content script not ready, injecting it now");
+      // Check if content script is responsive
+      chrome.tabs.sendMessage(tabId, { action: "ping" }, response => {
+          if (chrome.runtime.lastError || !response) {
+              console.log("Content script not ready, injecting it now");
 
-        // Inject content script
-        chrome.scripting.executeScript({
-          target: {tabId: tabId},
-          files: ['browser-id3-writer.js', 'downloadHelper.js']
-        }).then(() => {
-          // Wait for content script to initialize
-          setTimeout(resolve, 500);
-        }).catch(err => {
-          reject(new Error(`Cannot inject script: ${err.message}`));
-        });
-      } else {
-        // Content script is already loaded
-        resolve();
-      }
-    });
+              // Inject content script
+              chrome.scripting.executeScript({
+                  target: { tabId: tabId },
+                  files: ['browser-id3-writer.js', 'downloadHelper.js']
+              }).then(() => {
+                  // Wait for content script to initialize - INCREASED WAIT TIME
+                  setTimeout(resolve, 1000); // Wait 1 second
+              }).catch(err => {
+                  reject(new Error(`Cannot inject script: ${err.message}`));
+              });
+          } else {
+              // Content script is already loaded
+              resolve();
+          }
+      });
   });
 }
 
@@ -129,6 +129,7 @@ async function downloadAudioFile(url, filename, metadata) {
     await ensureContentScriptLoaded(activeTab.id);
 
     // Now send the download message with metadata
+    console.log("Sending metadata to content script:", metadata); // Add this log
     return new Promise((resolve, reject) => {
       chrome.tabs.sendMessage(
         activeTab.id,
