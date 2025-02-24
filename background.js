@@ -35,10 +35,12 @@ async function extractTitleAndUpdate(tabId) {
   try {
     // Check if the tab URL indicates an audiobook page.
     const tab = await chrome.tabs.get(tabId);
-    if (!tab || !tab.url || !tab.url.includes("libbyapp.com")) { // Or a more specific check.
+    if (!tab || !tab.url || !tab.url.includes("listen.overdrive.com")) { // **Corrected URL Check**
       console.log("Not an audiobook tab, skipping title extraction.");
       return;
     }
+
+    console.log("Attempting to extract title from tab:", tabId);
 
     const results = await chrome.scripting.executeScript({
       target: { tabId: tabId },
@@ -47,23 +49,30 @@ async function extractTitleAndUpdate(tabId) {
 
     const pageTitle = results?.[0]?.result;
 
+    console.log("Extracted page title:", pageTitle);
+
     if (pageTitle) {
       chrome.storage.local.get(['bookTitle'], function(result) {
         const storedTitle = result.bookTitle;
+
+        console.log("Stored title:", storedTitle);
 
         if (storedTitle && storedTitle !== pageTitle) {
           // Titles don't match, clear author name
           chrome.storage.local.set({ authorName: '', bookTitle: pageTitle }, () => {
             console.log("Title changed, author name cleared.");
 
-            // Optionally, send message to popup to update author field.
+            // Optionally, send message to popup to updateAuthorField
             chrome.runtime.sendMessage({ action: "updateAuthorField" });
           });
         } else {
           // Titles match or no stored title
           chrome.storage.local.set({ bookTitle: pageTitle });
+          console.log("Titles match or no stored title, setting bookTitle to:", pageTitle);
         }
       });
+    } else {
+      console.log("No page title found.");
     }
   } catch (error) {
     console.error("Error extracting title:", error);
@@ -79,7 +88,7 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
         extractTitleAndUpdate(tabId);
 
         // **Check if it's a Libby Audiobook Tab before injecting content scripts**
-        if (tab && tab.url && tab.url.includes("libbyapp.com")) {
+        if (tab && tab.url && tab.url.includes("listen.overdrive.com")) { // **Corrected URL Check**
             // Prevent multiple injections
             chrome.tabs.sendMessage(tabId, { action: "ping" }, (response) => {
                 if (chrome.runtime.lastError || !response) {
@@ -101,6 +110,10 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
     }
 });
 
+chrome.tabs.onActivated.addListener(async (activeInfo) => {
+    console.log("Tab activated. activeInfo:", activeInfo); // Added logging
+    extractTitleAndUpdate(activeInfo.tabId);
+});
 
 // Ensure content script is loaded before attempting download
 async function ensureContentScriptLoaded(tabId) {
