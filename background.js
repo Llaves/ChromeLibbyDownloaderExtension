@@ -21,6 +21,10 @@ chrome.webRequest.onBeforeRequest.addListener(
 
         // Store the updated list in chrome.storage
         chrome.storage.local.set({capturedURLs: capturedURLs});
+
+        // **Send message to popup to update the URL count**
+        chrome.runtime.sendMessage({ action: "updateURLCount", urlCount: capturedURLs.length });
+
       }
     }
     // Don't interfere with the request

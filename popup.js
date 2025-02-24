@@ -159,6 +159,12 @@ document.addEventListener('DOMContentLoaded', function() {
         authorNameInput.value = '';
         updateCaptureStatus(); // Refresh the capture status
       }
+        //** Listen for updateURLCount messages from the background script**
+        else if (request.action === "updateURLCount") {
+            const count = request.urlCount;
+            captureStatusDiv.textContent = `Monitoring for media URLs (${count} captured)`;
+            downloadUrlsBtn.disabled = count === 0 || (bookTitleInput.value.trim() === '' || authorNameInput.value.trim() === ''); //Update based on the new count.
+        }
     });
 
     //Add click event listener for Capture Audio button
