@@ -2,8 +2,8 @@
 
 ## How to install
 
-To install in Chrome, open the debugger interface by typing "chrome://extensions". In the upper right corner enable "Developer Mode". Then click "Load unpacked". 
-Navigate to the Chrome folder and click on manifest.json. You may be tempted to "pack" the extension into a .crx file so that you don't have to use developer mode. 
+To install in Chrome, download a .zip file of the archive by clicking on the green "Code" button on the right above the listing of files. The open the debugger interface by typing "chrome://extensions". In the upper right corner enable "Developer Mode". Then click "Load unpacked". 
+Navigate to the unpaced zip file you just downloaded and click on manifest.json. You may be tempted to "pack" the extension into a .crx file so that you don't have to use developer mode. 
 This won't work. Chrome will only install signed .crx files from the Chrome store. 
 
 You may want to pin the extension to the toolbar. To do this, click on the puzzle piece in the upper right of your Chrome browser, the click on the pin next to the name of the extension.
